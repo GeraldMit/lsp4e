@@ -126,6 +126,7 @@ import org.eclipse.ui.intro.config.IIntroURL;
 import org.eclipse.ui.intro.config.IntroURLFactory;
 import org.eclipse.ui.part.FileEditorInput;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
+import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.texteditor.ITextEditor;
 
 /**
@@ -604,15 +605,40 @@ public class LSPEclipseUtils {
 	}
 
 	public static IDocument getDocument(ITextEditor editor) {
-		try {
-			Method getSourceViewerMethod= AbstractTextEditor.class.getDeclaredMethod("getSourceViewer"); //$NON-NLS-1$
-			getSourceViewerMethod.setAccessible(true);
-			ITextViewer viewer = (ITextViewer) getSourceViewerMethod.invoke(editor);
-			return viewer.getDocument();
-		} catch (Exception ex) {
-			LanguageServerPlugin.logError(ex);
+		if (editor == null )
 			return null;
+		if (editor instanceof AbstractTextEditor) {
+			try {
+				Method getSourceViewerMethod = AbstractTextEditor.class.getDeclaredMethod("getSourceViewer"); //$NON-NLS-1$
+				if (getSourceViewerMethod != null) {
+					getSourceViewerMethod.setAccessible(true);
+					final ITextViewer viewer = (ITextViewer) getSourceViewerMethod.invoke(editor);
+					if (viewer != null) {
+						final IDocument document = viewer.getDocument();
+						if (document != null)
+							return document;
+					}
+				}
+			} catch (Exception ex) {
+				LanguageServerPlugin.logError(ex);
+			}
 		}
+		final ITextViewer viewer = getTextViewer(editor);
+		if (viewer != null) {
+			final IDocument document = viewer.getDocument();
+			if (document != null)
+				return document;
+		}
+		final IDocumentProvider documentProvider = editor.getDocumentProvider();
+		if (documentProvider != null) {
+			final IEditorInput editorInput = editor.getEditorInput();
+			if (editorInput != null) {
+				final IDocument document = documentProvider.getDocument(editorInput);
+				if (document != null)
+					return document;
+			}
+		}
+		return null;
 	}
 
 	public static IDocument getDocument(IEditorInput editorInput) {
